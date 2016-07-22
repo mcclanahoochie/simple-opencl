@@ -42,7 +42,8 @@ extern "C" {
 #endif
 
 
-#define DEBUG  // XXX
+#define SKIP_IGPU  // define to not use integrated cpu/gpu.  (recommended)
+// #define DEBUG  // XXX cl_event memory leak
 
 
 #ifndef _OCLUTILS_STRUCTS
@@ -60,7 +61,7 @@ typedef sclHard* ptsclHard;
 typedef struct {
     cl_program program;
     cl_kernel kernel;
-    char kernelName[98];
+    char kernelName[96];
 } sclSoft;
 #define _OCLUTILS_STRUCTS
 #endif
@@ -73,14 +74,14 @@ cl_mem 			sclMallocWrite(sclHard hardware, cl_int mode, size_t size, void* hostP
 void 			sclWrite(sclHard hardware, size_t size, cl_mem buffer, void* hostPointer, size_t offset=0);
 void			sclRead(sclHard hardware, size_t size, cl_mem buffer, void* hostPointer);
 void			sclCopy(sclHard hardware, size_t size, cl_mem buffer_src, cl_mem buffer_dst);
-void			sclMemset0(sclHard hardware, size_t size, cl_mem buffer);
+void			sclMemset0(sclHard hardware, size_t size, cl_mem buffer); // ocl v1.2+ !!!
 
 /* ######################################################## */
 
 /* ####### initialization of sclSoft structs  ############## */
 
-sclSoft 		sclGetCLSoftware(char* path, char* name, sclHard hardware, char* flags=NULL);
-sclSoft			sclGetCLSoftwareFromSource(char* source, char* name, sclHard hardware, char* flags=NULL);
+sclSoft 		sclGetCLSoftware(const char* path, const char* name, sclHard hardware, const char* flags=NULL);
+sclSoft			sclGetCLSoftwareFromSource(const char* source, const char* name, sclHard hardware, const char* flags=NULL);
 
 /* ######################################################## */
 
@@ -155,7 +156,7 @@ void 			_sclWriteArgOnAFile(int argnum, void* arg, size_t size, const char* diff
 
 void 			_sclBuildProgram(cl_program program, cl_device_id devices, const char* pName, const char* flags=NULL);
 cl_kernel 		_sclCreateKernel(sclSoft software);
-cl_program 		_sclCreateProgram(char* program_source, cl_context context);
+cl_program 		_sclCreateProgram(const char* program_source, cl_context context);
 char* 			_sclLoadProgramSource(const char* filename);
 
 /* ######################################################## */

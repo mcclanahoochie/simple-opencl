@@ -217,7 +217,7 @@ char* _sclLoadProgramSource(const char* filename)
     return source;
 }
 
-cl_program _sclCreateProgram(char* program_source, cl_context context)
+cl_program _sclCreateProgram(const char* program_source, cl_context context)
 {
     cl_program program;
 #ifdef DEBUG
@@ -241,10 +241,10 @@ void _sclBuildProgram(cl_program program, cl_device_id devices, const char* pNam
     err = clBuildProgram(program, 0, NULL, flags, NULL, NULL);
     if (err != CL_SUCCESS) {
         printf("Error on buildProgram \n");
-        sclPrintErrorFlags(err);
-        fprintf(stdout, "\nRequestingInfo\n");
+        printf("Requesting info \n");
         clGetProgramBuildInfo(program, devices, CL_PROGRAM_BUILD_LOG, 4096, build_c, NULL);
         printf("Build Log for %s_program:\n%s\n", pName, build_c);
+        sclPrintErrorFlags(err);
     }
 #else
     clBuildProgram(program, 0, NULL, flags, NULL, NULL);
@@ -350,13 +350,19 @@ void sclPrintDeviceNamePlatforms(sclHard* hardList, int found)
     cl_char deviceName[1024];
     cl_char platformVendor[1024];
     cl_char platformName[1024];
+    cl_char deviceVersion[1024];
+
+#ifdef DEBUG
+    fprintf(stdout, "Available platforms and devices:\n");
+#endif
     for (i = 0; i < found; ++i) {
         clGetPlatformInfo(hardList[i].platform, CL_PLATFORM_NAME, sizeof(cl_char) * 1024, platformName, NULL);
         clGetPlatformInfo(hardList[i].platform, CL_PLATFORM_VENDOR, sizeof(cl_char) * 1024, platformVendor, NULL);
         clGetDeviceInfo(hardList[i].device, CL_DEVICE_NAME, sizeof(cl_char) * 1024, deviceName, NULL);
+        clGetDeviceInfo(hardList[i].device, CL_DEVICE_VERSION, sizeof(cl_char) * 1024, deviceVersion, NULL);
 #ifdef DEBUG
-        fprintf(stdout, "%d -  %d  %s  %s  %s\n", i,
-                hardList[i].devNum, platformName, platformVendor, deviceName);
+        fprintf(stdout, " %d  -  %d  %s  %s  %s  %s\n", i,
+                hardList[i].devNum, platformName, platformVendor, deviceName, deviceVersion);
 #endif
     }
 }
@@ -447,9 +453,9 @@ void _sclSmartCreateContexts(sclHard* hardList, int found)
     }
 
     for (i = 0; i < nGroups; ++i) {   /* Context generation */
-#ifdef DEBUG
-        fprintf(stdout, "Group %d with %d devices \n", i + 1, groupSizes[i]);
-#endif
+// #ifdef DEBUG
+//         fprintf(stdout, "Group %d with %d devices \n", i + 1, groupSizes[i]);
+// #endif
         for (j = 0; j < groupSizes[i]; ++j) {
             deviceList[j] = groups[i][j]->device;
         }
@@ -500,6 +506,7 @@ sclHard sclGetDeviceByID(sclHard* hardList, int found, int idx)
     size_t returned_size = 0;
     cl_char vendor_name[1024];
     cl_char device_name[1024];
+    cl_char device_vers[1024];
     cl_int err;
     device = idx < found ? idx : found - 1;
     device = device < 0 ? 0 : device;
@@ -509,13 +516,14 @@ sclHard sclGetDeviceByID(sclHard* hardList, int found, int idx)
         vendor_name[0] = '\0';
         device_name[0] = '\0';
         err  = clGetDeviceInfo(hardList[device].device, CL_DEVICE_VENDOR, sizeof(vendor_name), vendor_name, &returned_size);
-        err |= clGetDeviceInfo(hardList[device].device, CL_DEVICE_NAME, sizeof(device_name), device_name, &returned_size);
+        err |= clGetDeviceInfo(hardList[device].device, CL_DEVICE_NAME,   sizeof(device_name), device_name, &returned_size);
+        err |= clGetDeviceInfo(hardList[device].device, CL_DEVICE_VERSION,sizeof(device_vers), device_vers, &returned_size);
         if (err != CL_SUCCESS) {
             printf("Error 2 \n");
             sclPrintErrorFlags(err);
         }
-        fprintf(stdout, "OpenCL device %d/%d selected: \t%s %s | %d Compute Units \n",
-                device + 1, found, vendor_name, device_name, hardList[device].nComputeUnits);
+        fprintf(stdout, "OpenCL device %d/%d selected: \t%s %s | %d Compute Units | version %s \n",
+                device + 1, found, vendor_name, device_name, hardList[device].nComputeUnits, device_vers);
     }
 // #endif
     return hardList[ device ];
@@ -584,6 +592,13 @@ sclHard* sclGetAllHardware(int* found, cl_device_type compute_type)
                 }
             } else {
                 for (j = 0; j < (int)nDevices; ++j) {
+					// ------------ skip over integrated
+#ifdef SKIP_IGPU
+					cl_bool isIGPU = CL_FALSE;
+                    clGetDeviceInfo(devices[j], CL_DEVICE_HOST_UNIFIED_MEMORY, sizeof(isIGPU), &isIGPU, NULL);
+					if(isIGPU && (compute_type==CL_DEVICE_TYPE_GPU)) continue;
+#endif
+					// ------------
                     hardList[ *found ].platform       = platforms[ i ];
                     hardList[ *found ].device         = devices[ j ];
                     hardList[ *found ].nComputeUnits  = _sclGetMaxComputeUnits(hardList[ *found ].device);
@@ -837,7 +852,7 @@ sclHard sclGetCPUHardware(int nDevice, int* found)
     return hardware;
 }
 
-sclSoft sclGetCLSoftware(char* path, char* name, sclHard hardware, char* flags)
+sclSoft sclGetCLSoftware(const char* path, const char* name, sclHard hardware, const char* flags)
 {
     sclSoft software;
     FILE* fp = fopen(path, "r");
@@ -859,7 +874,7 @@ sclSoft sclGetCLSoftware(char* path, char* name, sclHard hardware, char* flags)
     return software;
 }
 
-sclSoft sclGetCLSoftwareFromSource(char* source, char* name, sclHard hardware, char* flags)
+sclSoft sclGetCLSoftwareFromSource(const char* source, const char* name, sclHard hardware, const char* flags)
 {
     sclSoft software;
     sprintf(software.kernelName, "%s", name);
@@ -970,7 +985,7 @@ void sclMemset0(sclHard hardware, size_t size, cl_mem buffer)
 
 cl_int sclFinish(sclHard hardware)
 {
-    cl_int err;
+    cl_int err = CL_SUCCESS;
 #ifdef DEBUG
     err = clFinish(hardware.queue);
     if (err != CL_SUCCESS) {
