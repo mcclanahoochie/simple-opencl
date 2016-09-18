@@ -241,7 +241,7 @@ void _sclBuildProgram(cl_program program, cl_device_id devices, const char* pNam
     err = clBuildProgram(program, 0, NULL, flags, NULL, NULL);
     if (err != CL_SUCCESS) {
         printf("Error on buildProgram \n");
-        printf("Requesting info \n");
+        // printf("Requesting info \n");
         clGetProgramBuildInfo(program, devices, CL_PROGRAM_BUILD_LOG, 4096, build_c, NULL);
         printf("Build Log for %s_program:\n%s\n", pName, build_c);
         sclPrintErrorFlags(err);
@@ -940,17 +940,17 @@ void sclWrite(sclHard hardware, size_t size, cl_mem buffer, void* hostPointer, s
 #endif
 }
 
-void sclRead(sclHard hardware, size_t size, cl_mem buffer, void* hostPointer)
+void sclRead(sclHard hardware, size_t size, cl_mem buffer, void* hostPointer, size_t offset)
 {
 #ifdef DEBUG
     cl_int err;
-    err = clEnqueueReadBuffer(hardware.queue, buffer, CL_TRUE, 0, size, hostPointer, 0, NULL, NULL);
+    err = clEnqueueReadBuffer(hardware.queue, buffer, CL_TRUE, offset, size, hostPointer, 0, NULL, NULL);
     if (err != CL_SUCCESS) {
         printf("clRead Error\n");
         sclPrintErrorFlags(err);
     }
 #else
-    clEnqueueReadBuffer(hardware.queue, buffer, CL_TRUE, 0, size, hostPointer, 0, NULL, NULL);
+    clEnqueueReadBuffer(hardware.queue, buffer, CL_TRUE, offset, size, hostPointer, 0, NULL, NULL);
 #endif
 }
 
